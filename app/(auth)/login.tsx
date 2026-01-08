@@ -1,3 +1,4 @@
+// LoginScreen.js - FIXED with new UI design
 import React, { useState, useEffect } from "react";
 import { Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -20,32 +21,15 @@ import {
 
 import { Lock, Mail } from "lucide-react-native";
 
-/* =====================
-   FIREBASE (INLINE)
-===================== */
-import { initializeApp, getApps, getApp } from "firebase/app";
 import {
-  getAuth,
-  signInWithEmailAndPassword,
-  onAuthStateChanged,
-} from "firebase/auth";
+  loginWithEmail,
+  onAuthStateChange,
+  getIdToken,
+  resetPassword,
+  getErrorMessage
+} from "../../firebaseConfig";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyACxQcOLDQZ4me2pQ4WszW_lnIA__PIou8",
-  authDomain: "irigo-d65a4.firebaseapp.com",
-  projectId: "irigo-d65a4",
-  storageBucket: "irigo-d65a4.firebasestorage.app",
-  messagingSenderId: "563745426802",
-  appId: "1:563745426802:web:62280e13ac97fb7137a1eb"
-};
-
-// Prevent re-initialization
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
-
-/* =====================
-   Input Custom
-===================== */
+// 🎨 Input Custom Component
 const InputCustom = ({
   icon,
   placeholder,
@@ -53,6 +37,7 @@ const InputCustom = ({
   onChangeText,
   secureTextEntry,
   autoCapitalize,
+  keyboardType
 }) => (
   <Input
     variant="outline"
@@ -73,13 +58,12 @@ const InputCustom = ({
       onChangeText={onChangeText}
       secureTextEntry={secureTextEntry}
       autoCapitalize={autoCapitalize}
+      keyboardType={keyboardType}
     />
   </Input>
 );
 
-/* =====================
-   Login Screen
-===================== */
+// 🚀 Login Screen Component
 const LoginScreen = () => {
   const router = useRouter();
 
@@ -88,99 +72,146 @@ const LoginScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  /* =====================
-     Auto login check
-  ===================== */
+  // 🔄 Auto login check on mount
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChange(async (user) => {
       if (user) {
-        const idToken = await user.getIdToken();
-        await AsyncStorage.setItem("idToken", idToken);
-        router.replace("/(tabs)/home");
+        try {
+          const idToken = await getIdToken();
+          if (idToken) {
+            // ✅ Save both token AND userId
+            await AsyncStorage.setItem("idToken", idToken);
+            await AsyncStorage.setItem("userId", user.uid);
+            console.log("✅ Auto login berhasil");
+            console.log("👤 userId saved:", user.uid);
+            router.replace("/(tabs)/home");
+          }
+        } catch (error) {
+          console.error("Error auto login:", error);
+        }
       }
       setIsCheckingAuth(false);
     });
 
-    return unsubscribe;
+    return () => unsubscribe();
   }, []);
 
-  /* =====================
-     Handle Login
-  ===================== */
+  // 📝 Handle Login
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Email dan password wajib diisi");
+    if (!email.trim()) {
+      Alert.alert("Perhatian", "Email wajib diisi");
+      return;
+    }
+
+    if (!password) {
+      Alert.alert("Perhatian", "Password wajib diisi");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
+      const result = await loginWithEmail(email.trim(), password);
 
-      const user = userCredential.user;
-      const idToken = await user.getIdToken();
+      if (result.success) {
+        const idToken = await getIdToken();
 
-      console.log("✅ UID:", user.uid);
-      console.log("✅ ID TOKEN:", idToken.substring(0, 20) + "...");
+        console.log("✅ Login berhasil!");
+        console.log("👤 UID:", result.user.uid);
+        console.log("📧 Email:", result.user.email);
 
-      await AsyncStorage.setItem("idToken", idToken);
+        // ✅ Save BOTH token AND userId
+        if (idToken) {
+          await AsyncStorage.setItem("idToken", idToken);
+          await AsyncStorage.setItem("userId", result.user.uid);
+          console.log("🔐 Token & userId disimpan");
+          console.log("📦 userId:", result.user.uid);
+        }
 
-      router.replace("/(tabs)/home");
-    } catch (error: any) {
-      let message = "Login gagal";
+        router.replace("/(tabs)/home");
 
-      switch (error.code) {
-        case "auth/user-not-found":
-          message = "Akun tidak ditemukan";
-          break;
-        case "auth/wrong-password":
-          message = "Password salah";
-          break;
-        case "auth/invalid-email":
-          message = "Email tidak valid";
-          break;
-        case "auth/network-request-failed":
-          message = "Koneksi internet bermasalah";
-          break;
+      } else {
+        const errorMessage = getErrorMessage(result.errorCode);
+        Alert.alert("Login Gagal", errorMessage);
       }
-
-      Alert.alert("Login Gagal", message);
+    } catch (error) {
+      console.error("❌ Login error:", error);
+      Alert.alert("Login Gagal", "Terjadi kesalahan tak terduga. Coba lagi.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  /* =====================
-     Loading screen
-  ===================== */
+  // 🔄 Handle Forgot Password
+  const handleForgotPassword = () => {
+    if (!email.trim()) {
+      Alert.alert(
+        "Lupa Password",
+        "Masukkan email Anda terlebih dahulu",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      "Reset Password",
+      `Kirim link reset password ke ${email}?`,
+      [
+        { text: "Batal", style: "cancel" },
+        {
+          text: "Kirim",
+          onPress: async () => {
+            try {
+              const result = await resetPassword(email.trim());
+              if (result.success) {
+                Alert.alert(
+                  "Berhasil!",
+                  "Link reset password telah dikirim ke email Anda. Silakan cek inbox atau spam folder."
+                );
+              } else {
+                Alert.alert("Gagal", result.error || "Gagal mengirim email reset");
+              }
+            } catch (error) {
+              Alert.alert("Error", "Gagal mengirim email reset password");
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // ⏳ Loading screen
   if (isCheckingAuth) {
     return (
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
         <Box flex={1} justifyContent="center" alignItems="center">
-          <Text>Memeriksa autentikasi...</Text>
+          <Text fontSize="$lg" color="#4A6EFF">
+            Memeriksa autentikasi...
+          </Text>
         </Box>
       </SafeAreaView>
     );
   }
 
-  /* =====================
-     Render
-  ===================== */
+  // 🎨 Render UI
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       <Box flex={1} px="$6" pt="$16">
         <VStack space="4xl">
-          <VStack>
-            <Text fontSize="$4xl" fontWeight="$bold">Hey,</Text>
-            <Text fontSize="$4xl" fontWeight="$bold">Welcome</Text>
-            <Text fontSize="$4xl" fontWeight="$bold">Back</Text>
+          {/* Header Section - Big Bold Text */}
+          <VStack space="xs">
+            <Text fontSize="$4xl" fontWeight="$bold" color="#34427C">
+              Hey,
+            </Text>
+            <Text fontSize="$4xl" fontWeight="$bold" color="#34427C">
+              Welcome
+            </Text>
+            <Text fontSize="$4xl" fontWeight="$bold" color="#34427C">
+              Back
+            </Text>
           </VStack>
 
+          {/* Form Section */}
           <VStack space="md">
             <InputCustom
               icon={Mail}
@@ -188,7 +219,9 @@ const LoginScreen = () => {
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
+              keyboardType="email-address"
             />
+
             <InputCustom
               icon={Lock}
               placeholder="Password"
@@ -197,25 +230,48 @@ const LoginScreen = () => {
               secureTextEntry
             />
 
-            <HStack justifyContent="space-between">
-              <Pressable onPress={() => router.push("/(auth)/register")}>
-                <Text fontSize="$xs">Belum Punya Akun?</Text>
+            {/* Links Section */}
+            <HStack justifyContent="space-between" mt="$2">
+              <Pressable
+                onPress={() => router.push("/(auth)/register")}
+                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+              >
+                <Text fontSize="$xs" color="#6B7280">
+                  Belum Punya Akun?
+                </Text>
               </Pressable>
-              <Pressable onPress={() => Alert.alert("Info", "Segera hadir")}>
-                <Text fontSize="$xs">Lupa Password?</Text>
+
+              <Pressable
+                onPress={handleForgotPassword}
+                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+              >
+                <Text fontSize="$xs" color="#6B7280">
+                </Text>
               </Pressable>
             </HStack>
           </VStack>
 
+          {/* Login Button - Pushed to bottom */}
           <Button
             size="lg"
             bg="#4A6EFF"
             h="$12"
             borderRadius="$lg"
+            mt="$250"
             onPress={handleLogin}
-            isDisabled={isLoading}
+            isDisabled={isLoading || !email.trim() || !password}
+            sx={{
+              _pressed: {
+                bg: "#3A5EEF",
+                transform: [{ scale: 0.98 }]
+              },
+              _disabled: {
+                bg: "#CAD5FF",
+                opacity: 0.7
+              }
+            }}
           >
-            <ButtonText>
+            <ButtonText fontSize="$md" fontWeight="$semibold">
               {isLoading ? "Loading..." : "Masuk"}
             </ButtonText>
           </Button>

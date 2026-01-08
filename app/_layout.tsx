@@ -1,10 +1,20 @@
+import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { GluestackUIProvider } from "@gluestack-ui/themed";
 import { config } from "@gluestack-ui/config";
+import * as SplashScreen from "expo-splash-screen";
+
+// Mencegah splash screen bawaan otomatis hide
+SplashScreen.preventAutoHideAsync();
 
 const noHead = { headerShown: false };
 
 const StackLayout = () => {
+  useEffect(() => {
+    // Sembunyikan splash screen bawaan segera
+    SplashScreen.hideAsync();
+  }, []);
+
   return (
     <GluestackUIProvider config={config}>
       <Stack initialRouteName="(splash)/index">

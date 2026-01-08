@@ -5,7 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Header } from "../../components/header";
 import { Pressable, Box, Card, Text, Icon, Center, HStack, VStack, Spinner, Heading } from "@gluestack-ui/themed";
 import { useRouter } from "expo-router";
-import { ToggleRight, Thermometer, Droplets, Waves, Zap, ArrowUpNarrowWide, RefreshCw } from "lucide-react-native";
+import { ToggleRight, Thermometer, Droplets, Waves, Zap, ArrowUpNarrowWide } from "lucide-react-native";
 
 // API URLs
 const API_BASE_URL = "http://100.64.57.66:9876";
@@ -28,6 +28,7 @@ type PumpInfo = {
   power_hp: number;
   voltage: number;
   name: string;
+  status_pump?: boolean;
 };
 
 type Totals = {
@@ -48,31 +49,6 @@ type PumpHistoryItem = {
   sum_time?: number;
   title?: string;
   time?: string;
-};
-
-type PumpStatusAndHistoryResponse = {
-  last_status: boolean;
-  data: PumpHistoryItem[];
-};
-
-type PumpHistoryResponse = PumpHistoryItem[];
-
-type WSResponse = {
-  action: string;
-  status: string;
-  message?: string;
-  data?: any;
-};
-
-type GroupedHistory = {
-  [date: string]: PumpHistoryItem[];
-};
-
-type InfoItem = {
-  title: string;
-  value: string | number;
-  icon: any;
-  satuan?: string;
 };
 
 // Helper function untuk format durasi dengan satuan dinamis
@@ -243,7 +219,7 @@ const WeatherCard = ({ router }) => {
     <TouchableOpacity
       activeOpacity={0.7}
       style={{ flex: 1 }}
-      onPress={() => router.push("/(sub-menu)/todolist")}
+      onPress={() => router.push("/(sub-menu)/history-cuaca")}
     >
       <Card
         backgroundColor="$blue200"
@@ -305,12 +281,14 @@ const Home = () => {
     totalActivities: 0
   });
 
-  const [pumpInfo, setPumpInfo] = useState({
-    power_kwh: 3,
-    power_hp: 4,
-    voltage: 380,
-    name: "Pump Inoto A"
+  const [pumpInfo, setPumpInfo] = useState<PumpInfo>({
+    power_kwh: 0,
+    power_hp: 0,
+    voltage: 0,
+    name: "-"
   });
+
+  const [isLoadingPumpData, setIsLoadingPumpData] = useState(false);
 
   // Connection status
   const [connectionStatus, setConnectionStatus] = useState({
@@ -379,132 +357,182 @@ const Home = () => {
     getToken();
   }, []);
 
-
-  // Fetch pump data from API
+  // 🔄 Fetch pump data from API
   const fetchPumpData = async () => {
-    if (!authToken) return;
+    if (!authToken) {
+      console.log("❌ No auth token available");
+      return;
+    }
 
     try {
+      setIsLoadingPumpData(true);
       console.log("📡 Fetching pump data from API...");
+
       const response = await fetch(API_PUMP_URL, {
+        method: 'GET',
         headers: {
-          Authorization: authToken,
-          "Content-Type": "application/json",
-        },
+          'Authorization': authToken,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
       });
 
+      console.log("📊 API Response Status:", response.status);
 
       if (response.ok) {
         const data = await response.json();
-        console.log("✅ Pump API Data:", data);
+        console.log("✅ Pump API Data received:", data);
 
-        setPumpInfo({
-          power_kwh: data.power_kw || 2.5,
+        // Update pump info dengan data dari API
+        const updatedPumpInfo: PumpInfo = {
+          power_kwh: data.power_kw || data.power_kwh || 2.5,
           power_hp: data.power_hp || 3.3,
           voltage: data.voltage || 220,
-          name: data.pump_name || "Pump A"
-        });
+          name: data.pump_name || "Pump A",
+          status_pump: data.status_pump || false
+        };
 
+        setPumpInfo(updatedPumpInfo);
+
+        // Update pump status berdasarkan status_pump dari API
         setPumpStatus(prev => ({
           ...prev,
-          status: data.status_pump ? "On" : "Off"
+          status: data.status_pump ? "Off" : "On"
         }));
 
+        console.log("✅ Pump data updated:", updatedPumpInfo);
+
+      } else if (response.status === 401) {
+        console.error("❌ Unauthorized - Token invalid");
+        Alert.alert(
+          "Session Expired",
+          "Silakan login kembali",
+          [{ text: "OK", onPress: () => router.replace("/(auth)/login") }]
+        );
       } else {
-        console.error("❌ Error fetching pump data, status:", response.status);
+        console.error(`❌ Error fetching pump data, status: ${response.status}`);
       }
     } catch (error) {
       console.error("❌ Error fetching pump data:", error);
+    } finally {
+      setIsLoadingPumpData(false);
     }
   };
 
-  // Fungsi untuk meminta data get_history (untuk totals)
-  // Fungsi untuk mengirim request get_history
-  const requestAllHistory = (websocket) => {
-    if (websocket && websocket.readyState === WebSocket.OPEN) {
-      console.log("📤 SENDING get_history request...");
+  // Fetch pump data ketika authToken tersedia
+  useEffect(() => {
+    if (authToken) {
+      fetchPumpData();
 
-      const requestData = {
-        action: "get_history",
-        data: {
-          history_pump_id: 1
-        }
-      };
-
-      console.log("📤 Request payload:", JSON.stringify(requestData));
-      websocket.send(JSON.stringify(requestData));
+      // Setup interval untuk refresh data setiap 30 detik
+      const interval = setInterval(fetchPumpData, 30000);
+      return () => clearInterval(interval);
     }
-  };
-
+  }, [authToken]);
 
   // Setup WebSocket connections
   useEffect(() => {
     if (!authToken) return;
 
     const connectPumpWS = () => {
-      const ws = new WebSocket(WS_PUMP_URL, [], {
-        headers: { Authorization: authToken }
-      });
+      try {
+        const ws = new WebSocket(WS_PUMP_URL, [], {
+          headers: { Authorization: authToken }
+        });
 
-      wsRef.current = ws;
+        wsRef.current = ws;
 
-      ws.onopen = () => {
-        console.log("✅ WebSocket connected");
-        setConnectionStatus(p => ({ ...p, pump: true }));
+        ws.onopen = () => {
+          console.log("✅ Pump WebSocket connected");
+          setConnectionStatus(p => ({ ...p, pump: true }));
 
-        // Kirim request get_history
-        const requestPayload = {
-          action: "get_history",
-          data: { history_pump_id: 1 }
+          // Kirim request get_history
+          const requestPayload = {
+            action: "get_history",
+            data: { history_pump_id: 1 }
+          };
+
+          console.log("📤 Sending history request:", requestPayload);
+          ws.send(JSON.stringify(requestPayload));
         };
 
-        console.log("📤 Sending request:", requestPayload);
-        ws.send(JSON.stringify(requestPayload));
-      };
+        ws.onmessage = (e) => {
+          try {
+            const res = JSON.parse(e.data);
+            console.log("📥 Received WebSocket message - action:", res.action);
 
-      ws.onmessage = (e) => {
-        try {
-          const res = JSON.parse(e.data);
-          console.log("📥 Received action:", res.action, "Data type:", typeof res.data);
+            // ---- HANDLE get_history RESPONSE ----
+            if (res.action === "get_history") {
+              console.log("📊 get_history response received");
 
-          // ---- HANDLE get_history RESPONSE ----
-          if (res.action === "get_history") {
-            console.log("📊 get_history response details:", {
-              hasData: !!res.data,
-              isArray: Array.isArray(res.data),
-              data: res.data
-            });
-
-            // Format 1: Data langsung berupa array
-            if (Array.isArray(res.data)) {
-              console.log("✅ Data is direct array, processing", res.data.length, "items");
-              processHistoryData(res.data);
-            }
-            // Format 2: Data dalam object dengan properti tertentu
-            else if (res.data && typeof res.data === 'object') {
-              // Cek berbagai kemungkinan properti
-              const dataArray = res.data.items || res.data.records || res.data.data || res.data.history;
-              if (Array.isArray(dataArray)) {
-                console.log("✅ Found array in data property, processing", dataArray.length, "items");
-                processHistoryData(dataArray);
-              } else {
-                console.log("⚠️ Could not find array in data object:", Object.keys(res.data));
+              // Format 1: Data langsung berupa array
+              if (Array.isArray(res.data)) {
+                console.log(`✅ Data is direct array, processing ${res.data.length} items`);
+                processHistoryData(res.data);
+              }
+              // Format 2: Data dalam object dengan properti tertentu
+              else if (res.data && typeof res.data === 'object') {
+                // Cek berbagai kemungkinan properti
+                const dataArray = res.data.items || res.data.records || res.data.data || res.data.history;
+                if (Array.isArray(dataArray)) {
+                  console.log(`✅ Found array in data property, processing ${dataArray.length} items`);
+                  processHistoryData(dataArray);
+                } else {
+                  console.log("⚠️ Could not find array in data object:", Object.keys(res.data));
+                }
+              }
+              // Format 3: Error response
+              else if (res.error) {
+                console.error("❌ Server returned error:", res.error);
+              }
+              // Format tidak dikenali
+              else {
+                console.log("⚠️ Unexpected response format for get_history");
               }
             }
-            // Format 3: Error response
-            else if (res.error) {
-              console.error("❌ Server returned error:", res.error);
-            }
-            // Format tidak dikenali
-            else {
-              console.log("⚠️ Unexpected response format for get_history");
-            }
-          }
 
-        } catch (err) {
-          console.error("❌ Parse error:", err);
-        }
-      };
+            // ---- HANDLE REAL-TIME PUMP STATUS UPDATES ----
+            if (res.action === "pump_status_update" || res.action === "status_update") {
+              console.log("🔄 Real-time pump status update:", res);
+
+              if (res.data?.status_pump !== undefined) {
+                setPumpStatus(prev => ({
+                  ...prev,
+                  status: res.data.status_pump ? "On" : "Off"
+                }));
+
+                // Juga update pumpInfo
+                setPumpInfo(prev => ({
+                  ...prev,
+                  status_pump: res.data.status_pump
+                }));
+              }
+            }
+
+          } catch (err) {
+            console.error("❌ Parse error from WebSocket:", err);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error("❌ Pump WebSocket Error:", error);
+          setConnectionStatus(p => ({ ...p, pump: false }));
+        };
+
+        ws.onclose = () => {
+          console.log("🔌 Pump WebSocket Closed");
+          setConnectionStatus(p => ({ ...p, pump: false }));
+
+          // Reconnect after 3 seconds
+          setTimeout(() => {
+            console.log("🔄 Reconnecting to pump WebSocket...");
+            connectPumpWS();
+          }, 3000);
+        };
+
+      } catch (error) {
+        console.error("❌ Error creating pump WebSocket:", error);
+      }
     };
 
     const connectMoistureWS = () => {
@@ -514,7 +542,7 @@ const Home = () => {
         });
 
         websocket.onopen = () => {
-          console.log("✅ WebSocket Connected: moisture");
+          console.log("✅ Moisture WebSocket Connected");
           setConnectionStatus(prev => ({ ...prev, moisture: true }));
 
           // Request initial data
@@ -545,12 +573,12 @@ const Home = () => {
         };
 
         websocket.onerror = (error) => {
-          console.error("❌ WebSocket Error (moisture):", error);
+          console.error("❌ Moisture WebSocket Error:", error);
           setConnectionStatus(prev => ({ ...prev, moisture: false }));
         };
 
         websocket.onclose = () => {
-          console.log("🔌 WebSocket Closed: moisture");
+          console.log("🔌 Moisture WebSocket Closed");
           setConnectionStatus(prev => ({ ...prev, moisture: false }));
 
           setTimeout(() => {
@@ -638,16 +666,25 @@ const Home = () => {
       }
     };
 
+    // Connect semua WebSockets
     connectPumpWS();
     connectMoistureWS();
     connectWaterLevelWS();
 
+    // Cleanup function
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
   }, [authToken]);
 
   // Fungsi helper untuk memproses data history
   const processHistoryData = (dataArray) => {
+    console.log("📈 Processing history data:", dataArray.length, "items");
+
     const totalTime = dataArray.reduce((sum, item) => sum + Number(item.sum_time || 0), 0);
-    const totalEnergy = (totalTime / 3600) * (pumpInfo?.power_kwh || 1.5);
+    const totalEnergy = (totalTime / 3600) * (pumpInfo?.power_kwh || 2.5);
 
     setTotals({
       totalTime: Math.trunc(totalTime),
@@ -656,14 +693,6 @@ const Home = () => {
     });
 
     setPumpHistory(dataArray);
-  };
-
-  // Helper functions
-  const calculateDuration = (item: any) => {
-    if (!item || !item.sum_time) return "0 Jam";
-    const hours = Math.floor(item.sum_time / 3600);
-    const minutes = Math.floor((item.sum_time % 3600) / 60);
-    return hours > 0 ? `${hours} Jam ${minutes} Menit` : `${minutes} Menit`;
   };
 
   // Format durasi untuk Pompa Nyala dari totals
@@ -723,9 +752,12 @@ const Home = () => {
           {/* Saklar Pompa (REALTIME STATUS) */}
           <Card backgroundColor="$blue500" borderRadius="$2xl" flex={1} p="$4" variant="filled">
             <VStack space="sm">
-              <Center backgroundColor="$blue700" w="$8" h="$8" borderRadius="$full">
-                <Icon as={ToggleRight} size="md" color="$white" />
-              </Center>
+              <HStack justifyContent="space-between" alignItems="center">
+                <Center backgroundColor="$blue700" w="$8" h="$8" borderRadius="$full">
+                  <Icon as={ToggleRight} size="md" color="$white" />
+                </Center>
+                {isLoadingPumpData && <Spinner size="small" color="$white" />}
+              </HStack>
               <Text color="$white" fontSize="$lg" fontWeight="$semibold">
                 Saklar Pompa Air
               </Text>
@@ -813,18 +845,24 @@ const Home = () => {
                 <Text fontWeight="$bold" fontSize="$md" color="$white">
                   {pumpInfo.name}
                 </Text>
-                <HStack justifyContent="space-between">
-                  {infoPump.map((item, i) => (
-                    <VStack key={i} flex={1}>
-                      <Text color="$white" fontSize="$xs">
-                        {item.title}
-                      </Text>
-                      <Text fontWeight="$bold" color="$white">
-                        {item.value}
-                      </Text>
-                    </VStack>
-                  ))}
-                </HStack>
+                {isLoadingPumpData ? (
+                  <Center py="$3">
+                    <Spinner size="small" color="$white" />
+                  </Center>
+                ) : (
+                  <HStack justifyContent="space-between">
+                    {infoPump.map((item, i) => (
+                      <VStack key={i} flex={1}>
+                        <Text color="$white" fontSize="$xs">
+                          {item.title}
+                        </Text>
+                        <Text fontWeight="$bold" color="$white">
+                          {item.value}
+                        </Text>
+                      </VStack>
+                    ))}
+                  </HStack>
+                )}
               </VStack>
             </HStack>
           </Card>
@@ -867,7 +905,7 @@ const Home = () => {
                         title: item.pump_name || "Pompa 1",
                         time: `${getHourMinute(item.start_time)} - ${getHourMinute(item.end_time)}`,
                       }}
-                      powerKW={powerKW}
+                      powerKW={pumpInfo.power_kwh || 3}
                     />
                   ))}
                 </VStack>
