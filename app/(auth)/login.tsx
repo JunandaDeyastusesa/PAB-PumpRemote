@@ -1,44 +1,13 @@
-// LoginScreen.js - FIXED with new UI design
 import React, { useState, useEffect } from "react";
 import { Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-
-import {
-  Box,
-  Button,
-  ButtonText,
-  HStack,
-  Input,
-  InputField,
-  InputIcon,
-  InputSlot,
-  Pressable,
-  Text,
-  VStack,
-} from "@gluestack-ui/themed";
-
+import { Box, Button, ButtonText, HStack, Input, InputField, InputIcon, InputSlot, Pressable, Text, VStack, } from "@gluestack-ui/themed";
 import { Lock, Mail } from "lucide-react-native";
+import { loginWithEmail, onAuthStateChange, getIdToken, resetPassword, getErrorMessage } from "../../firebaseConfig";
 
-import {
-  loginWithEmail,
-  onAuthStateChange,
-  getIdToken,
-  resetPassword,
-  getErrorMessage
-} from "../../firebaseConfig";
-
-// 🎨 Input Custom Component
-const InputCustom = ({
-  icon,
-  placeholder,
-  value,
-  onChangeText,
-  secureTextEntry,
-  autoCapitalize,
-  keyboardType
-}) => (
+const InputCustom = ({ icon, placeholder, value, onChangeText, secureTextEntry, autoCapitalize, keyboardType }) => (
   <Input
     variant="outline"
     size="lg"
@@ -63,7 +32,6 @@ const InputCustom = ({
   </Input>
 );
 
-// 🚀 Login Screen Component
 const LoginScreen = () => {
   const router = useRouter();
 
@@ -72,18 +40,15 @@ const LoginScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // 🔄 Auto login check on mount
   useEffect(() => {
     const unsubscribe = onAuthStateChange(async (user) => {
       if (user) {
         try {
           const idToken = await getIdToken();
           if (idToken) {
-            // ✅ Save both token AND userId
             await AsyncStorage.setItem("idToken", idToken);
             await AsyncStorage.setItem("userId", user.uid);
-            console.log("✅ Auto login berhasil");
-            console.log("👤 userId saved:", user.uid);
+            console.log("userId saved:", user.uid);
             router.replace("/(tabs)/home");
           }
         } catch (error) {
@@ -96,7 +61,6 @@ const LoginScreen = () => {
     return () => unsubscribe();
   }, []);
 
-  // 📝 Handle Login
   const handleLogin = async () => {
     if (!email.trim()) {
       Alert.alert("Perhatian", "Email wajib diisi");
@@ -116,16 +80,9 @@ const LoginScreen = () => {
       if (result.success) {
         const idToken = await getIdToken();
 
-        console.log("✅ Login berhasil!");
-        console.log("👤 UID:", result.user.uid);
-        console.log("📧 Email:", result.user.email);
-
-        // ✅ Save BOTH token AND userId
         if (idToken) {
           await AsyncStorage.setItem("idToken", idToken);
           await AsyncStorage.setItem("userId", result.user.uid);
-          console.log("🔐 Token & userId disimpan");
-          console.log("📦 userId:", result.user.uid);
         }
 
         router.replace("/(tabs)/home");
@@ -135,7 +92,7 @@ const LoginScreen = () => {
         Alert.alert("Login Gagal", errorMessage);
       }
     } catch (error) {
-      console.error("❌ Login error:", error);
+      console.error("Login error:", error);
       Alert.alert("Login Gagal", "Terjadi kesalahan tak terduga. Coba lagi.");
     } finally {
       setIsLoading(false);
@@ -180,7 +137,6 @@ const LoginScreen = () => {
     );
   };
 
-  // ⏳ Loading screen
   if (isCheckingAuth) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
@@ -193,12 +149,10 @@ const LoginScreen = () => {
     );
   }
 
-  // 🎨 Render UI
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       <Box flex={1} px="$6" pt="$16">
         <VStack space="4xl">
-          {/* Header Section - Big Bold Text */}
           <VStack space="xs">
             <Text fontSize="$4xl" fontWeight="$bold" color="#34427C">
               Hey,
@@ -211,7 +165,6 @@ const LoginScreen = () => {
             </Text>
           </VStack>
 
-          {/* Form Section */}
           <VStack space="md">
             <InputCustom
               icon={Mail}
@@ -230,7 +183,6 @@ const LoginScreen = () => {
               secureTextEntry
             />
 
-            {/* Links Section */}
             <HStack justifyContent="space-between" mt="$2">
               <Pressable
                 onPress={() => router.push("/(auth)/register")}
@@ -251,7 +203,6 @@ const LoginScreen = () => {
             </HStack>
           </VStack>
 
-          {/* Login Button - Pushed to bottom */}
           <Button
             size="lg"
             bg="#4A6EFF"

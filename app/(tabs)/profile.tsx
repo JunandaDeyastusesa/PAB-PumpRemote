@@ -7,16 +7,10 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth, signOut } from "firebase/auth";
 
-// Component untuk Profile Card
 const ProfileCard = ({ userName, pumpName, infoPump }) => (
     <Box bg="$blue500" borderRadius="$2xl" p="$5" mb="$4">
         <HStack space="md" alignItems="flex-start">
-            <Center
-                w={60}
-                h={60}
-                borderRadius="$full"
-                bg="$blue400"
-            >
+            <Center w={60} h={60} borderRadius="$full" bg="$blue400">
                 <Ionicons name="person" size={32} color="white" />
             </Center>
 
@@ -45,13 +39,8 @@ const ProfileCard = ({ userName, pumpName, infoPump }) => (
     </Box>
 );
 
-// Component untuk Pump List Item dengan Toggle
 const PumpListItem = ({ item, isActive }) => (
-    <Box
-        bg="$blue100"
-        borderRadius="$lg"
-        p="$4"
-    >
+    <Box bg="$blue100" borderRadius="$lg" p="$4">
         <HStack justifyContent="space-between" alignItems="center">
             <VStack flex={1}>
                 <Text fontSize="$md" fontWeight="$semibold" mb="$1">
@@ -76,9 +65,8 @@ const PumpListItem = ({ item, isActive }) => (
 const Profile = () => {
     const router = useRouter();
 
-    // State Management
     const [userProfile] = useState({
-        name: 'Junanda Deyastusesa',
+        name: 'User Pompa',
         activePump: 'Loading...'
     });
 
@@ -92,18 +80,15 @@ const Profile = () => {
         { id: 1, title: 'Loading...', value: 'Loading...', isActive: false },
     ]);
 
-    // Fetch data dari API
     useEffect(() => {
         const fetchPumpData = async () => {
             try {
-                // Ambil token dari AsyncStorage
                 const token = await AsyncStorage.getItem("idToken");
                 if (!token) {
                     console.log("Token tidak ditemukan");
                     return;
                 }
 
-                // Fetch data dari API
                 const response = await fetch('http://100.64.57.66:9876/pump/1', {
                     method: 'GET',
                     headers: {
@@ -118,14 +103,12 @@ const Profile = () => {
                 const data = await response.json();
                 console.log('Data dari API:', data);
 
-                // Update info pump
                 setInfoPump([
                     { title: 'Power(kwh)', value: data.power_kw?.toString() || '0' },
                     { title: 'Power(hp)', value: data.power_hp?.toString() || '0' },
                     { title: 'Voltage(V)', value: data.voltage?.toString() || '0' },
                 ]);
 
-                // Update daftar pompa
                 setDaftarPompa([
                     {
                         id: 1,
@@ -138,7 +121,6 @@ const Profile = () => {
             } catch (err) {
                 console.error('Error fetching pump data:', err);
 
-                // Set default data jika error
                 setInfoPump([
                     { title: 'Power(kwh)', value: 'Error' },
                     { title: 'Power(hp)', value: 'Error' },
@@ -154,37 +136,24 @@ const Profile = () => {
         fetchPumpData();
     }, []);
 
-    // Handlers
-    const handleNotification = () => {
-        router.push('/notification');
-    };
-
     const handlePumpPress = (pump) => {
         console.log('Pompa dipilih:', pump.title);
     };
 
     const handleLogout = async () => {
         try {
-            console.log("🔄 Starting Firebase logout...");
+            console.log("Starting Firebase logout...");
 
             const auth = getAuth();
             await signOut(auth);
-            console.log("✅ Firebase signout successful");
-
             await AsyncStorage.removeItem("idToken");
-            console.log("✅ Token removed from storage");
-
             await AsyncStorage.removeItem("UID");
-            console.log("✅ Token removed from storage");
-
             await AsyncStorage.removeItem("userEmail");
             await AsyncStorage.removeItem("loginTimestamp");
-
-            console.log("✅ Redirecting to login...");
             router.replace("/(auth)/login");
 
         } catch (err) {
-            console.error("❌ Logout failed:", err);
+            console.error("Logout failed:", err);
             Alert.alert(
                 "Logout Error",
                 "Gagal logout. Silakan coba lagi.",
@@ -200,27 +169,20 @@ const Profile = () => {
 
             <ScrollView showsVerticalScrollIndicator={false}>
                 <Box px="$5" py="$4">
-                    {/* Profile Card */}
                     <ProfileCard
                         userName={userProfile.name}
                         pumpName={daftarPompa[0]?.title || 'Loading...'}
                         infoPump={infoPump}
                     />
 
-                    {/* Daftar Pompa Section */}
                     <VStack space="sm" mb="$4">
                         <Heading size="lg">Daftar Pompa</Heading>
 
                         {daftarPompa.map((item) => (
-                            <PumpListItem
-                                key={item.id}
-                                item={item}
-                                isActive={item.isActive}
-                            />
+                            <PumpListItem key={item.id} item={item} isActive={item.isActive}/>
                         ))}
                     </VStack>
 
-                    {/* Tombol Logout */}
                     <Box mt="$4" mb="$6">
                         <Pressable onPress={handleLogout}>
                             <Box

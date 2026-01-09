@@ -1,30 +1,13 @@
-// firebaseConfig.js - FIXED: Accept userId parameter
 import { initializeApp, getApps, getApp } from "firebase/app";
 import {
-    getAuth,
-    signInWithEmailAndPassword,
-    createUserWithEmailAndPassword,
-    signOut,
-    sendPasswordResetEmail,
-    onAuthStateChanged,
-    updateProfile,
+    getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+    signOut, sendPasswordResetEmail, onAuthStateChanged, updateProfile,
 } from "firebase/auth";
 import {
-    getFirestore,
-    collection,
-    addDoc,
-    updateDoc,
-    deleteDoc,
-    doc,
-    getDocs,
-    query,
-    orderBy,
-    serverTimestamp,
-    onSnapshot,
-    where
+    getFirestore, collection, addDoc, updateDoc, deleteDoc, doc,
+    getDocs, query, orderBy, serverTimestamp, onSnapshot, where
 } from "firebase/firestore";
 
-// 🔥 FIREBASE CONFIG
 const firebaseConfig = {
     apiKey: "AIzaSyACxQcOLDQZ4me2pQ4WszW_lnIA__PIou8",
     authDomain: "irigo-d65a4.firebaseapp.com",
@@ -34,12 +17,10 @@ const firebaseConfig = {
     appId: "1:563745426802:web:62280e13ac97fb7137a1eb"
 };
 
-// ✅ INITIALIZE
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// 🔐 AUTH FUNCTIONS
 export const loginWithEmail = async (email, password) => {
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -69,10 +50,7 @@ export const registerWithEmail = async (email, password, displayName = "") => {
 
         return { success: true, user: userCredential.user, error: null };
     } catch (error) {
-        return {
-            success: false,
-            error: getErrorMessage(error.code)
-        };
+        return { success: false, error: getErrorMessage(error.code) };
     }
 };
 
@@ -110,21 +88,15 @@ export const getIdToken = async (forceRefresh = false) => {
     }
 };
 
-// 📊 FIRESTORE FUNCTIONS
 const todosCollection = collection(db, "todos");
 
-// ✅ FIXED: Accept userId as parameter
 export const createTodo = async (todoData, userId = null) => {
     try {
-        // ✅ Use passed userId OR fallback to auth.currentUser
         const user = auth.currentUser;
         const effectiveUserId = userId || user?.uid;
         const effectiveUserEmail = user?.email || null;
 
-        console.log("💾 Creating todo with userId:", effectiveUserId);
-
         if (!effectiveUserId) {
-            console.error("❌ No userId provided and no currentUser");
             return { success: false, error: "User ID tidak ditemukan" };
         }
 
@@ -138,10 +110,9 @@ export const createTodo = async (todoData, userId = null) => {
         };
 
         const docRef = await addDoc(todosCollection, todoWithMeta);
-        console.log("✅ Todo created with ID:", docRef.id);
         return { success: true, id: docRef.id };
     } catch (error) {
-        console.error("❌ Create todo error:", error);
+        console.error("Create todo error:", error);
         return { success: false, error: error.message };
     }
 };
@@ -170,20 +141,17 @@ export const deleteTodo = async (id) => {
     }
 };
 
-// 🔗 SUBSCRIBE TO TODOS
 export const subscribeToTodos = (callback, userId = null) => {
     try {
         let q;
 
         if (userId) {
-            console.log("🔍 Subscribing with filter userId:", userId);
             q = query(
                 todosCollection,
                 where("userId", "==", userId),
                 orderBy("createdAt", "desc")
             );
         } else {
-            console.log("🔍 Subscribing without userId filter");
             q = query(todosCollection, orderBy("createdAt", "desc"));
         }
 
@@ -194,21 +162,19 @@ export const subscribeToTodos = (callback, userId = null) => {
                     id: doc.id,
                     ...doc.data()
                 }));
-                console.log("📥 Subscription received", todos.length, "todos");
                 callback(todos, null);
             },
             (error) => {
-                console.error("❌ Subscription error:", error);
+                console.error("Subscription error:", error);
                 callback([], error);
             }
         );
     } catch (error) {
-        console.error("❌ Subscribe setup error:", error);
+        console.error("Subscribe setup error:", error);
         return () => { };
     }
 };
 
-// 🎯 ERROR MESSAGES
 export const getErrorMessage = (errorCode) => {
     const messages = {
         "auth/user-not-found": "Akun tidak ditemukan",
@@ -226,19 +192,9 @@ export const getErrorMessage = (errorCode) => {
 export { app, auth, db };
 
 export default {
-    app,
-    auth,
-    db,
-    loginWithEmail,
-    registerWithEmail,
-    logout,
-    resetPassword,
-    getCurrentUser,
-    onAuthStateChange,
-    getIdToken,
-    createTodo,
-    updateTodo,
-    deleteTodo,
-    subscribeToTodos,
+    app, auth, db,
+    loginWithEmail, registerWithEmail, logout, resetPassword,
+    getCurrentUser, onAuthStateChange, getIdToken,
+    createTodo, updateTodo, deleteTodo, subscribeToTodos,
     getErrorMessage
 };

@@ -23,7 +23,7 @@ const Header = ({ title }: HeaderProps) => {
 
                 <HStack>
                     <Pressable onPress={handleNotification}>
-                        <Ionicons name="notifications-outline" size={24} color="black" />
+                        <Ionicons name="create-outline" size={24} color="black" />
                     </Pressable>
                 </HStack>
             </HStack>

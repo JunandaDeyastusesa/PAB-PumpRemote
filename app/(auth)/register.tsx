@@ -1,43 +1,13 @@
-// RegisterScreen.js - SIMPLIFIED VERSION
 import React, { useState } from "react";
 import { Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-
-import {
-  Box,
-  Button,
-  ButtonText,
-  HStack,
-  Input,
-  InputField,
-  InputIcon,
-  InputSlot,
-  Pressable,
-  Text,
-  VStack,
-} from "@gluestack-ui/themed";
-
+import { Box, Button, ButtonText, HStack, Input, InputField, InputIcon, InputSlot, Pressable, Text, VStack, } from "@gluestack-ui/themed";
 import { Lock, Mail, User } from "lucide-react-native";
+import { registerWithEmail, getIdToken, getErrorMessage } from "../../firebaseConfig";
 
-import {
-  registerWithEmail,
-  getIdToken,
-  getErrorMessage
-} from "../../firebaseConfig";
-
-// 🎨 Input Custom Component
-const InputCustom = ({
-  icon,
-  placeholder,
-  value,
-  onChangeText,
-  secureTextEntry,
-  autoCapitalize,
-  keyboardType,
-  error
-}) => (
+const InputCustom = ({ icon, placeholder, value, onChangeText, secureTextEntry, autoCapitalize, keyboardType, error }) => (
   <VStack space="xs">
     <Input
       variant="outline"
@@ -69,10 +39,8 @@ const InputCustom = ({
   </VStack>
 );
 
-// 🚀 Register Screen Component
 const RegisterScreen = () => {
   const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -83,7 +51,6 @@ const RegisterScreen = () => {
     confirmPassword: ""
   });
 
-  // 📝 Validate Form
   const validateForm = () => {
     const newErrors = {
       email: "",
@@ -93,7 +60,6 @@ const RegisterScreen = () => {
 
     let isValid = true;
 
-    // Email validation
     if (!email.trim()) {
       newErrors.email = "Email wajib diisi";
       isValid = false;
@@ -102,7 +68,6 @@ const RegisterScreen = () => {
       isValid = false;
     }
 
-    // Password validation
     if (!password) {
       newErrors.password = "Password wajib diisi";
       isValid = false;
@@ -111,7 +76,6 @@ const RegisterScreen = () => {
       isValid = false;
     }
 
-    // Confirm password validation
     if (!confirmPassword) {
       newErrors.confirmPassword = "Konfirmasi password wajib diisi";
       isValid = false;
@@ -124,7 +88,6 @@ const RegisterScreen = () => {
     return isValid;
   };
 
-  // 🔄 Clear error on field change
   const clearError = (field) => {
     setErrors(prev => ({
       ...prev,
@@ -132,7 +95,6 @@ const RegisterScreen = () => {
     }));
   };
 
-  // 📝 Handle Register
   const handleRegister = async () => {
     if (!validateForm()) return;
 
@@ -142,14 +104,12 @@ const RegisterScreen = () => {
       const result = await registerWithEmail(email.trim(), password);
 
       if (result.success) {
-        // Get token after successful registration
         const idToken = await getIdToken();
 
         console.log("✅ Registrasi berhasil!");
         console.log("👤 UID:", result.user.uid);
         console.log("📧 Email:", result.user.email);
 
-        // Save token and user ID
         if (idToken) {
           await AsyncStorage.setItem("idToken", idToken);
           await AsyncStorage.setItem("userId", result.user.uid);
@@ -172,7 +132,7 @@ const RegisterScreen = () => {
         Alert.alert("Registrasi Gagal", errorMessage);
       }
     } catch (error) {
-      console.error("❌ Register error:", error);
+      console.error("Register error:", error);
       Alert.alert(
         "Registrasi Gagal",
         "Terjadi kesalahan tak terduga. Silakan coba lagi."
@@ -182,12 +142,10 @@ const RegisterScreen = () => {
     }
   };
 
-  // 🎨 Render UI
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       <Box flex={1} px="$6" pt="$16">
         <VStack space="4xl">
-          {/* Header Section - Big Bold Text */}
           <VStack space="xs">
             <Text fontSize="$4xl" fontWeight="$bold" color="#34427C">
               Hey,
@@ -200,9 +158,7 @@ const RegisterScreen = () => {
             </Text>
           </VStack>
 
-          {/* Form Section */}
           <VStack space="md">
-            {/* Email Input */}
             <InputCustom
               icon={Mail}
               placeholder="Email"
@@ -216,7 +172,6 @@ const RegisterScreen = () => {
               error={errors.email}
             />
 
-            {/* Password Input */}
             <InputCustom
               icon={Lock}
               placeholder="Password"
@@ -229,7 +184,6 @@ const RegisterScreen = () => {
               error={errors.password}
             />
 
-            {/* Confirm Password Input */}
             <InputCustom
               icon={Lock}
               placeholder="Konfirmasi Password"
@@ -242,7 +196,6 @@ const RegisterScreen = () => {
               error={errors.confirmPassword}
             />
 
-            {/* Links Section */}
             <HStack justifyContent="flex-end" mt="$2">
               <Pressable
                 onPress={() => router.push("/(auth)/login")}
@@ -255,7 +208,6 @@ const RegisterScreen = () => {
             </HStack>
           </VStack>
 
-          {/* Register Button - Pushed to bottom */}
           <Button
             size="lg"
             bg="#4A6EFF"

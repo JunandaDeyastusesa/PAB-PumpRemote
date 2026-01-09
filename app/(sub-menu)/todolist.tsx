@@ -1,46 +1,12 @@
-// TodoList.js - FIXED: Re-subscribe when auth changes
 import React, { useState, useEffect } from "react";
 import { SafeAreaView, Alert, ScrollView, Pressable } from "react-native";
-import {
-    VStack,
-    HStack,
-    Text,
-    Card,
-    Checkbox,
-    CheckboxIndicator,
-    CheckboxIcon,
-    CheckIcon,
-    Icon,
-    Input,
-    InputField,
-    Textarea,
-    TextareaInput,
-    Modal,
-    ModalBackdrop,
-    ModalContent,
-    ModalHeader,
-    ModalBody,
-    ModalFooter,
-    Button,
-    ButtonText,
-    Fab,
-    FabIcon,
-    Box,
-    Center,
-    Spinner,
-} from "@gluestack-ui/themed";
+import { VStack, HStack, Text, Card, Checkbox, CheckboxIndicator, CheckboxIcon, CheckIcon, Icon, Input, InputField, Textarea, TextareaInput, Modal,
+    ModalBackdrop, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, ButtonText, Fab, FabIcon, Box, Center, Spinner, } from "@gluestack-ui/themed";
 import { Plus, Trash2, X } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 
-import {
-    createTodo,
-    updateTodo,
-    deleteTodo,
-    subscribeToTodos,
-    getCurrentUser,
-    onAuthStateChange,
-} from "../../firebaseConfig";
+import { createTodo, updateTodo, deleteTodo, subscribeToTodos, getCurrentUser, onAuthStateChange} from "../../firebaseConfig";
 
 const TodoList = () => {
     const router = useRouter();
@@ -54,11 +20,9 @@ const TodoList = () => {
     const [currentUser, setCurrentUser] = useState(null);
     const [userId, setUserId] = useState(null);
 
-    // ✅ STEP 1: Initialize userId from AsyncStorage FIRST
     useEffect(() => {
         const loadUserId = async () => {
             const storedUserId = await AsyncStorage.getItem("userId");
-            console.log("📦 Initial load - Stored userId:", storedUserId);
             if (storedUserId) {
                 setUserId(storedUserId);
             }
@@ -66,21 +30,16 @@ const TodoList = () => {
         loadUserId();
     }, []);
 
-    // ✅ STEP 2: Setup auth listener
     useEffect(() => {
         const unsubscribeAuth = onAuthStateChange(async (user) => {
-            console.log("🔐 Auth state changed:", user?.uid || "null");
             setCurrentUser(user);
 
             if (user) {
                 setUserId(user.uid);
                 await AsyncStorage.setItem("userId", user.uid);
-                console.log("💾 userId saved to AsyncStorage:", user.uid);
             } else {
-                // ⚠️ If user logged out, check if userId still in storage
                 const storedUserId = await AsyncStorage.getItem("userId");
                 if (storedUserId) {
-                    console.log("⚠️ User null but userId exists in storage:", storedUserId);
                     setUserId(storedUserId);
                 } else {
                     setUserId(null);
@@ -91,26 +50,21 @@ const TodoList = () => {
         return () => unsubscribeAuth();
     }, []);
 
-    // ✅ STEP 3: Subscribe to todos whenever userId changes
     useEffect(() => {
         if (!userId) {
-            console.log("⏭️ No userId yet, skipping subscription");
             setLoading(false);
             return;
         }
 
-        console.log("🔄 Setting up subscription for userId:", userId);
         setLoading(true);
 
         const unsubscribe = subscribeToTodos((todosData, error) => {
             if (error) {
-                console.error("❌ Subscription error:", error);
+                console.error("Subscription error:", error);
                 Alert.alert("Error", "Gagal memuat data");
                 setLoading(false);
                 return;
             }
-
-            console.log("📥 Received", todosData.length, "todos");
 
             const formatted = todosData.map(todo => ({
                 ...todo,
@@ -129,12 +83,10 @@ const TodoList = () => {
         }, userId);
 
         return () => {
-            console.log("🔄 Unsubscribing from todos");
             unsubscribe?.();
         };
-    }, [userId]); // ✅ Re-subscribe when userId changes!
+    }, [userId]);
 
-    // 🎯 MODAL HANDLERS
     const resetForm = () => {
         setEditId(null);
         setTitle("");
@@ -160,9 +112,7 @@ const TodoList = () => {
         }
     };
 
-    // 💾 SAVE TODO
     const saveTodo = async () => {
-        console.log("🎯 SAVE CLICKED - Title:", title);
 
         if (!title.trim()) {
             Alert.alert("Peringatan", "Judul tidak boleh kosong");
@@ -170,24 +120,18 @@ const TodoList = () => {
         }
 
         if (saving) {
-            console.log("⏳ Already saving, ignored");
             return;
         }
 
-        // ✅ Get userId from state or AsyncStorage
         const effectiveUserId = userId || await AsyncStorage.getItem("userId");
-        console.log("👤 Effective userId:", effectiveUserId);
-        console.log("👤 Current user:", currentUser?.uid || "null");
 
         if (!effectiveUserId) {
             Alert.alert("Error", "Anda harus login untuk menambah todo");
-            console.log("❌ No user ID found");
             router.push("/(auth)/login");
             return;
         }
 
         setSaving(true);
-        console.log("⏳ Saving started...");
 
         const todoData = {
             title: title.trim(),
@@ -197,29 +141,23 @@ const TodoList = () => {
         try {
             const result = editId
                 ? await updateTodo(editId, todoData)
-                : await createTodo(todoData, effectiveUserId); // ✅ Pass userId!
-
-            console.log("📦 Result:", result);
+                : await createTodo(todoData, effectiveUserId);
 
             if (result.success) {
-                console.log("✅ Success! Closing modal...");
                 resetForm();
                 setModalOpen(false);
-                console.log("✅ Modal closed");
             } else {
-                console.log("❌ Failed:", result.error);
+                console.log("Failed:", result.error);
                 Alert.alert("Error", result.error || "Gagal menyimpan");
             }
         } catch (error) {
-            console.log("🔥 Exception:", error);
+            console.log("Exception:", error);
             Alert.alert("Error", "Terjadi kesalahan");
         } finally {
             setSaving(false);
-            console.log("🔄 Saving state reset");
         }
     };
 
-    // ✅ TOGGLE TODO
     const toggleTodo = async (id, currentCompleted) => {
         const result = await updateTodo(id, { completed: !currentCompleted });
         if (!result.success) {
@@ -227,7 +165,6 @@ const TodoList = () => {
         }
     };
 
-    // 🗑️ DELETE TODO
     const deleteTodoHandler = (id) => {
         Alert.alert(
             "Hapus Todo",
@@ -248,7 +185,6 @@ const TodoList = () => {
         );
     };
 
-    // 📱 RENDER
     if (loading) {
         return (
             <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
@@ -264,7 +200,6 @@ const TodoList = () => {
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: "white" }}>
-            {/* TODO LIST */}
             <ScrollView style={{ flex: 1 }}>
                 <VStack px="$4" mt="$4" mb="$24" space="md">
                     {todos.length === 0 ? (
@@ -335,7 +270,6 @@ const TodoList = () => {
                 </VStack>
             </ScrollView>
 
-            {/* FAB */}
             <Fab
                 placement="bottom right"
                 size="lg"
@@ -345,7 +279,6 @@ const TodoList = () => {
                 <FabIcon as={Plus} size="lg" color="$white" />
             </Fab>
 
-            {/* MODAL */}
             <Modal isOpen={modalOpen} onClose={closeModal} size="lg">
                 <ModalBackdrop />
                 <ModalContent mx="$4" borderRadius="$2xl">

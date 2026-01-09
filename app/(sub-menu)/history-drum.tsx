@@ -8,23 +8,42 @@ const HistoryDrum = ({ initialStatus = [] }) => {
     initialStatus.length > 0
       ? initialStatus
       : [
-          {
-            date: "12 Jan 2025",
-            data: [
-              { title: "Pompa Air Inoto A", time: "13:00:10", status: "On" },
-              { title: "Pompa Air Inoto B", time: "13:00:00", status: "On" },
-              { title: "Pompa Air Inoto C", time: "12:50:50", status: "On" },
-              { title: "Pompa Air Inoto B", time: "15:50:40", status: "Off" },
-            ],
-          },
-          {
-            date: "11 Jan 2025",
-            data: [
-              { title: "Pompa Air Inoto B", time: "13:00:00", status: "On" },
-              { title: "Pompa Air Inoto A", time: "12:50:50", status: "On" },
-            ],
-          },
-        ]
+        {
+          date: "09 Jan 2026",
+          data: [
+            { title: "Pompa Air Utama", time: "17:05:42", status: "95%" },
+            { title: "Pompa Air Utama", time: "17:01:18", status: "92%" },
+            { title: "Pompa Air Utama", time: "16:56:47", status: "90%" },
+            { title: "Pompa Air Utama", time: "16:52:13", status: "88%" },
+            { title: "Pompa Air Utama", time: "16:47:55", status: "85%" },
+            { title: "Pompa Air Utama", time: "16:43:29", status: "83%" },
+            { title: "Pompa Air Utama", time: "16:38:54", status: "80%" },
+            { title: "Pompa Air Utama", time: "16:34:21", status: "78%" },
+            { title: "Pompa Air Utama", time: "16:29:46", status: "75%" },
+            { title: "Pompa Air Utama", time: "16:25:08", status: "73%" },
+            { title: "Pompa Air Utama", time: "16:20:33", status: "70%" },
+            { title: "Pompa Air Utama", time: "16:15:57", status: "68%" },
+            { title: "Pompa Air Utama", time: "16:11:24", status: "65%" },
+            { title: "Pompa Air Utama", time: "16:06:49", status: "63%" },
+            { title: "Pompa Air Utama", time: "16:02:15", status: "60%" },
+            { title: "Pompa Air Utama", time: "15:57:41", status: "58%" },
+            { title: "Pompa Air Utama", time: "15:53:06", status: "55%" },
+            { title: "Pompa Air Utama", time: "15:48:32", status: "53%" },
+            { title: "Pompa Air Utama", time: "15:44:00", status: "50%" },
+            { title: "Pompa Air Utama", time: "15:39:26", status: "48%" },
+          ],
+        },
+        {
+          date: "08 Jan 2026",
+          data: [
+            { title: "Pompa Air Utama", time: "15:34:51", status: "45%" },
+            { title: "Pompa Air Utama", time: "15:30:18", status: "43%" },
+            { title: "Pompa Air Utama", time: "15:25:44", status: "40%" },
+            { title: "Pompa Air Utama", time: "15:21:09", status: "38%" },
+            { title: "Pompa Air Utama", time: "15:16:36", status: "35%" },
+          ],
+        },
+      ]
   );
 
   return (
