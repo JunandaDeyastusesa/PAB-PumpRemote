@@ -1,11 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from "../../components/header";
-import { Box, HStack, Heading, Text, Center, VStack, ScrollView, Pressable } from "@gluestack-ui/themed";
+import {
+    Box,
+    HStack,
+    Heading,
+    Text,
+    Center,
+    VStack,
+    ScrollView,
+    Pressable
+} from "@gluestack-ui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Alert } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth, signOut } from "firebase/auth";
+
+/* ================= COMPONENTS ================= */
 
 const ProfileCard = ({ userName, pumpName, infoPump }) => (
     <Box bg="$blue500" borderRadius="$2xl" p="$5" mb="$4">
@@ -62,6 +74,8 @@ const PumpListItem = ({ item, isActive }) => (
     </Box>
 );
 
+/* ================= MAIN ================= */
+
 const Profile = () => {
     const router = useRouter();
 
@@ -84,24 +98,13 @@ const Profile = () => {
         const fetchPumpData = async () => {
             try {
                 const token = await AsyncStorage.getItem("idToken");
-                if (!token) {
-                    console.log("Token tidak ditemukan");
-                    return;
-                }
+                if (!token) return;
 
                 const response = await fetch('http://100.64.57.66:9876/pump/1', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': token
-                    },
+                    headers: { Authorization: token },
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
                 const data = await response.json();
-                console.log('Data dari API:', data);
 
                 setInfoPump([
                     { title: 'Power(kwh)', value: data.power_kw?.toString() || '0' },
@@ -117,54 +120,48 @@ const Profile = () => {
                         isActive: data.status_pump || false
                     },
                 ]);
-
             } catch (err) {
-                console.error('Error fetching pump data:', err);
-
-                setInfoPump([
-                    { title: 'Power(kwh)', value: 'Error' },
-                    { title: 'Power(hp)', value: 'Error' },
-                    { title: 'Voltage(V)', value: 'Error' },
-                ]);
-
-                setDaftarPompa([
-                    { id: 1, title: 'Gagal Memuat', value: 'Silakan coba lagi', isActive: false },
-                ]);
+                console.error(err);
             }
         };
 
         fetchPumpData();
     }, []);
 
-    const handlePumpPress = (pump) => {
-        console.log('Pompa dipilih:', pump.title);
-    };
+    /* ===== LOGOUT ===== */
 
-    const handleLogout = async () => {
+    const doLogout = async () => {
         try {
-            console.log("Starting Firebase logout...");
-
             const auth = getAuth();
             await signOut(auth);
-            await AsyncStorage.removeItem("idToken");
-            await AsyncStorage.removeItem("UID");
-            await AsyncStorage.removeItem("userEmail");
-            await AsyncStorage.removeItem("loginTimestamp");
-            router.replace("/(auth)/login");
 
+            await AsyncStorage.multiRemove([
+                "idToken",
+                "UID",
+                "userEmail",
+                "loginTimestamp",
+            ]);
+
+            router.replace("/(auth)/login");
         } catch (err) {
-            console.error("Logout failed:", err);
-            Alert.alert(
-                "Logout Error",
-                "Gagal logout. Silakan coba lagi.",
-                [{ text: "OK" }]
-            );
+            Alert.alert("Logout Error", "Gagal logout. Silakan coba lagi.");
         }
     };
 
+    const handleLogout = () => {
+        Alert.alert(
+            "Konfirmasi Logout",
+            "Apakah Anda yakin ingin keluar?",
+            [
+                { text: "Batal", style: "cancel" },
+                { text: "Keluar", style: "destructive", onPress: doLogout },
+            ],
+            { cancelable: true }
+        );
+    };
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#F8FEFF' }}>
+        <SafeAreaView style={{ backgroundColor: '#F8FEFF' }}>
             <Header title="Profil" />
 
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -177,9 +174,8 @@ const Profile = () => {
 
                     <VStack space="sm" mb="$4">
                         <Heading size="lg">Daftar Pompa</Heading>
-
                         {daftarPompa.map((item) => (
-                            <PumpListItem key={item.id} item={item} isActive={item.isActive}/>
+                            <PumpListItem key={item.id} item={item} isActive={item.isActive} />
                         ))}
                     </VStack>
 

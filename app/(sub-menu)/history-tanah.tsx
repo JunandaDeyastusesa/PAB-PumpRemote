@@ -39,7 +39,7 @@ const HistoryTanah = ({ initialData = [] }) => {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8FEFF" }}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <VStack px="$4" mt="$3" mb="$5" space="lg">
+        <VStack px="$4" mb="$5" space="lg">
           {historyData.map((section, index) => (
             <Box key={index}>
               <Text fontSize="$sm" color="$textLight600" mb="$2">
