@@ -1,17 +1,14 @@
 import { Box, HStack, Heading, Pressable, ScrollView, Text, VStack, Center, Spinner } from "@gluestack-ui/themed";
 import { useRouter } from 'expo-router';
-import { RefreshCw } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Alert, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// WebSocket URLs
 const API_BASE_URL = "http://100.64.57.66:9876";
 const WS_BASE_URL = "ws://100.64.57.66:9876";
 const WS_PUMP_URL = `${WS_BASE_URL}/ws/history-pump`;
 
-// Helper functions
 const secondsToHours = (seconds = 0) => {
     if (seconds < 60) {
         return {
@@ -35,13 +32,11 @@ const secondsToHours = (seconds = 0) => {
     };
 };
 
-// Fungsi untuk format yang hanya menampilkan menit (untuk backward compatibility)
 const secondsToMinutes = (seconds = 0) => {
     const minutes = seconds / 60;
     return minutes.toFixed(2).replace(".", ",");
 };
 
-// Fungsi untuk menghitung KWH berdasarkan power_kw dari API
 const calculateEnergy = (seconds, powerKW = 0.064) => {
     const hours = seconds / 3600;
     const kwh = powerKW * hours;
@@ -64,18 +59,11 @@ const formatDateHeader = (dateString) => {
     });
 };
 
-// Component Pump History Card
 const PumpHistoryCard = ({ item, powerKW }) => {
     const duration = secondsToHours(item.sum_time);
 
     return (
-        <Box
-            bg={"$blue100"}
-            borderRadius="$xl"
-            p="$4"
-            my="$1"
-            mx="$1"
-        >
+        <Box bg={"$blue100"} borderRadius="$xl" p="$4" my="$1" mx="$1">
             <HStack space="sm" alignItems="center">
                 <VStack
                     alignItems="center"
@@ -111,22 +99,15 @@ const PumpHistoryCard = ({ item, powerKW }) => {
 
 const HistoryPump = () => {
     const router = useRouter();
-
-    // States
     const [authToken, setAuthToken] = useState(null);
     const [pumpHistory, setPumpHistory] = useState([]);
     const [groupedHistory, setGroupedHistory] = useState({});
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-
-    // State untuk power_kw dari API
-    const [powerKW, setPowerKW] = useState(0.064); // Default 0.064 kW = 64W
-
-    // Refs
+    const [powerKW, setPowerKW] = useState(0.064);
     const wsRef = useRef(null);
     const reconnectTimeoutRef = useRef(null);
 
-    // Get auth token
     useEffect(() => {
         const getToken = async () => {
             try {
@@ -149,7 +130,6 @@ const HistoryPump = () => {
         getToken();
     }, []);
 
-    // Fetch power_kw dari API
     const fetchPumpPower = useCallback(async () => {
         if (!authToken) return;
 
@@ -166,17 +146,14 @@ const HistoryPump = () => {
             }
 
             const data = await response.json();
-            // Set power_kw dari API, default ke 0.064 jika tidak ada
             setPowerKW(data.power_kw || 0.064);
 
         } catch (err) {
             console.error('Error fetching pump power:', err);
-            // Tetap gunakan default jika error
             setPowerKW(0.064);
         }
     }, [authToken]);
 
-    // Group history by date
     const groupHistoryData = useCallback((data) => {
         if (!data || data.length === 0) {
             setGroupedHistory({});
@@ -190,7 +167,6 @@ const HistoryPump = () => {
             return acc;
         }, {});
 
-        // Sort items within each date (terbaru dulu)
         Object.keys(grouped).forEach(date => {
             grouped[date].sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
         });
@@ -199,16 +175,13 @@ const HistoryPump = () => {
         return grouped;
     }, []);
 
-    // Setup WebSocket untuk real-time data
     const connectWebSocket = useCallback(() => {
         if (!authToken) return;
 
-        // Close existing connection
         if (wsRef.current) {
             wsRef.current.close();
         }
 
-        // Clear any pending reconnection
         if (reconnectTimeoutRef.current) {
             clearTimeout(reconnectTimeoutRef.current);
         }
@@ -218,9 +191,6 @@ const HistoryPump = () => {
         });
 
         ws.onopen = () => {
-            console.log("✅ WebSocket Connected: history-pump");
-
-            // Request all history data
             ws.send(JSON.stringify({
                 action: "get_history",
                 data: {
@@ -233,11 +203,8 @@ const HistoryPump = () => {
             try {
                 const response = JSON.parse(event.data);
 
-                // Handle history data response
                 if (response.action === "get_history" || response.status === "success") {
                     let historyData = [];
-
-                    // Extract data from different response formats
                     if (response.data && Array.isArray(response.data)) {
                         historyData = response.data;
                     } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
@@ -247,7 +214,6 @@ const HistoryPump = () => {
                     }
 
                     if (historyData.length > 0) {
-                        // Sort by start_time descending (terbaru dulu)
                         const sortedData = [...historyData]
                             .filter(item => item.start_time && item.end_time)
                             .sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
@@ -264,34 +230,30 @@ const HistoryPump = () => {
                 }
 
             } catch (err) {
-                console.error("❌ Error parsing WS data:", err);
+                console.error("Error parsing WS data:", err);
                 setIsLoading(false);
                 setIsRefreshing(false);
             }
         };
 
         ws.onerror = (error) => {
-            console.error("❌ WebSocket Error:", error);
+            console.error("WebSocket Error:", error);
             setIsLoading(false);
             setIsRefreshing(false);
         };
 
         ws.onclose = () => {
-            console.log("🔌 WebSocket Closed");
+            console.log("WebSocket Closed");
             setTimeout(connectWebSocket, 5000);
         };
     }, [authToken, groupHistoryData]);
 
-    // Initialize WebSocket connection dan fetch power
     useEffect(() => {
         if (authToken) {
-            // Fetch power_kw terlebih dahulu
             fetchPumpPower();
-            // Kemudian connect WebSocket
             connectWebSocket();
         }
 
-        // Cleanup function
         return () => {
             if (wsRef.current) {
                 wsRef.current.close(1000, "Component unmounting");
@@ -302,7 +264,6 @@ const HistoryPump = () => {
         };
     }, [authToken, connectWebSocket, fetchPumpPower]);
 
-    // Handler untuk refresh data
     const handleRefresh = () => {
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
             setIsRefreshing(true);
@@ -313,15 +274,12 @@ const HistoryPump = () => {
                     pump_id: 1
                 }
             }));
-
-            // Juga refresh power dari API
             fetchPumpPower();
         } else {
             connectWebSocket();
         }
     };
 
-    // Calculate totals dengan power_kw aktual
     const calculateTotals = () => {
         if (pumpHistory.length === 0) return null;
 
@@ -371,7 +329,6 @@ const HistoryPump = () => {
                         </Center>
                     ) : (
                         <>
-                            {/* Total Summary Card */}
                             {totals && (() => {
                                 const totalDuration = secondsToHours(totals.totalTime);
                                 return (
@@ -407,14 +364,12 @@ const HistoryPump = () => {
                                 );
                             })()}
 
-                            {/* History by Date */}
                             {Object.entries(groupedHistory).map(([date, items]) => {
                                 const totalTimeForDate = items.reduce((sum, item) => sum + (item.sum_time || 0), 0);
                                 const dateDuration = secondsToHours(totalTimeForDate);
 
                                 return (
                                     <VStack key={date} space="sm" mb="$6">
-                                        {/* Date Header */}
                                         <Box px="$3" py="$2" borderRadius="$lg">
                                             <HStack justifyContent="space-between" alignItems="center">
                                                 <VStack>
@@ -431,7 +386,6 @@ const HistoryPump = () => {
                                             </HStack>
                                         </Box>
 
-                                        {/* History Items */}
                                         {items.map((item, i) => (
                                             <PumpHistoryCard
                                                 key={`${date}-${i}-${item.start_time}-${item.end_time}`}

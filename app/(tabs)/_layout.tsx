@@ -1,15 +1,19 @@
 import { Tabs } from "expo-router/tabs";
 import { Text } from "@gluestack-ui/themed";
 import Ionicons from "@expo/vector-icons/Ionicons";
-
-const noHead = { headerShown: false };
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const TabsLayout = () => {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={({ route }) => ({
+        tabBarStyle: {
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom,
+        },
         tabBarIcon: ({ focused, color }) => {
-
           let iconName: keyof typeof Ionicons.glyphMap = "home-outline";
 
           switch (route.name) {
@@ -33,17 +37,21 @@ const TabsLayout = () => {
           );
         },
         tabBarIconStyle: { marginTop: 5 },
-        tabBarStyle: { height: 60 },
         tabBarLabel: ({ children, color, focused }) => (
-          <Text mb="$2" color={focused ? "#4A6EFF" : color} fontSize="$xs" fontWeight={focused ? "bold" : "light"}>
+          <Text
+            mb="$2"
+            color={focused ? "#4A6EFF" : color}
+            fontSize="$xs"
+            fontWeight={focused ? "bold" : "light"}
+          >
             {children}
           </Text>
         ),
       })}
     >
-      <Tabs.Screen name="home" options={{ title: "Home", ...noHead }} />
-      <Tabs.Screen name="power" options={{ title: "Power", ...noHead }} />
-      <Tabs.Screen name="profile" options={{ title: "Profile", ...noHead }} />
+      <Tabs.Screen name="home" options={{ title: "Home", headerShown: false }} />
+      <Tabs.Screen name="power" options={{ title: "Power", headerShown: false }} />
+      <Tabs.Screen name="profile" options={{ title: "Profile", headerShown: false }} />
     </Tabs>
   );
 };
